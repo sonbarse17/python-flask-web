@@ -1,40 +1,14 @@
-
-variable "aws_region" {
-  description = "The AWS region to create resources in."
+variable "gcp_project" {
+  description = "The GCP project ID."
   type        = string
 }
 
-variable "cluster_name" {
-  description = "The name of the EKS cluster."
+variable "gcp_region" {
+  description = "The GCP region to create resources in."
   type        = string
 }
 
-variable "cluster_version" {
-  description = "The Kubernetes version for the EKS cluster."
+variable "gke_cluster_name" {
+  description = "The name of the GKE cluster."
   type        = string
-  default     = "1.32"
-}
-
-variable "instance_types" {
-  description = "The instance types for the EKS node group."
-  type        = list(string)
-  default     = ["t2.medium"]
-}
-
-variable "desired_size" {
-  description = "The desired number of worker nodes."
-  type        = number
-  default     = 1
-}
-
-variable "max_size" {
-  description = "The maximum number of worker nodes."
-  type        = number
-  default     = 2
-}
-
-variable "min_size" {
-  description = "The minimum number of worker nodes."
-  type        = number
-  default     = 1
 }

@@ -1,27 +1,32 @@
-
-provider "aws" {
-  region = var.aws_region
-}
-
-data "aws_vpc" "default" {
-  default = true
-}
-
-data "aws_subnets" "default" {
-  filter {
-    name   = "vpc-id"
-    values = [data.aws_vpc.default.id]
+terraform {
+  required_providers {
+    google = {
+      source  = "hashicorp/google"
+      version = ">= 4.0.0"
+    }
   }
 }
 
-module "eks_cluster" {
-  source  = "./modules/eks"
+provider "google" {
+  project = var.gcp_project
+  region  = var.gcp_region
+}
 
-  cluster_name    = var.cluster_name
-  cluster_version = var.cluster_version
-  subnet_ids      = data.aws_subnets.default.ids
-  instance_types  = var.instance_types
-  desired_size    = var.desired_size
-  max_size        = var.max_size
-  min_size        = var.min_size
+resource "google_compute_network" "vpc" {
+  name                    = "gke-vpc"
+  auto_create_subnetworks = false
+}
+
+resource "google_compute_subnetwork" "subnet" {
+  name          = "gke-subnet"
+  ip_cidr_range = "10.10.10.0/24"
+  network       = google_compute_network.vpc.self_link
+  region        = var.gcp_region
+}
+
+module "gke_cluster" {
+  source       = "./modules/gke"
+  cluster_name = var.gke_cluster_name
+  location     = var.gcp_region
+  node_count   = 2
 }

@@ -1,4 +1,4 @@
-name: Deploy to Amazon EKS
+name: Deploy to Google GKE
 
 on:
   push:
@@ -17,27 +17,28 @@ jobs:
     - name: Checkout
       uses: actions/checkout@v3
 
-    - name: Configure AWS credentials
-      uses: aws-actions/configure-aws-credentials@v1
+    - id: 'auth'
+      uses: 'google-github-actions/auth@v0'
       with:
-        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        aws-region: ${{ secrets.AWS_REGION }}
+        credentials_json: '${{ secrets.GCP_SA_KEY }}'
 
-    - name: Login to Amazon ECR
-      id: login-ecr
-      uses: aws-actions/amazon-ecr-login@v1
+    - name: 'Set up Cloud SDK'
+      uses: 'google-github-actions/setup-gcloud@v0'
 
-    - name: Build, tag, and push image to Amazon ECR
+    - name: 'Configure Docker'
+      run: gcloud auth configure-docker
+
+    - name: Build, tag, and push image to Google Artifact Registry
       id: build-image
       env:
-        ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-        ECR_REPOSITORY: ${{ secrets.ECR_REPOSITORY }}
+        GAR_LOCATION: ${{ secrets.GCP_REGION }}
+        GAR_REPOSITORY: ${{ secrets.GAR_REPOSITORY }}
         IMAGE_TAG: ${{ github.sha }}
+        GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
       run: |
-        docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
-        docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
-        echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
+        docker build -t $GAR_LOCATION-docker.pkg.dev/$GCP_PROJECT_ID/$GAR_REPOSITORY/python-flask-web:$IMAGE_TAG .
+        docker push $GAR_LOCATION-docker.pkg.dev/$GCP_PROJECT_ID/$GAR_REPOSITORY/python-flask-web:$IMAGE_TAG
+        echo "image=$GAR_LOCATION-docker.pkg.dev/$GCP_PROJECT_ID/$GAR_REPOSITORY/python-flask-web:$IMAGE_TAG" >> $GITHUB_OUTPUT
 
     - name: Set up kubectl
       uses: azure/setup-kubectl@v3
@@ -45,9 +46,9 @@ jobs:
         version: 'v1.21.3' # Specify your desired kubectl version
 
     - name: Update kube config
-      run: aws eks update-kubeconfig --name ${{ secrets.EKS_CLUSTER_NAME }} --region ${{ secrets.AWS_REGION }}
+      run: gcloud container clusters get-credentials ${{ secrets.GKE_CLUSTER_NAME }} --region ${{ secrets.GCP_REGION }}
 
-    - name: Deploy to EKS
+    - name: Deploy to GKE
       run: |
         # Replace the image placeholder in the deployment.yml
         sed -i 's|${{ secrets.ECR_REGISTRY }}/${{ secrets.ECR_REPOSITORY }}:${{ github.sha }}|${{ steps.build-image.outputs.image }}|g' k8s/deployment.yml
@@ -57,9 +58,9 @@ jobs:
     - name: Wait for deployment to complete
       run: kubectl rollout status deployment/python-flask-web-deployment --timeout=300s
 
-    - name: Get Load Balancer URL
+    - name: Get Load Balancer IP
       run: |
         echo "Waiting for Load Balancer to be provisioned..."
         sleep 30
-        kubectl get svc python-flask-web-service -o jsonpath='{.status.loadBalancer.ingress[0].hostname}' > load_balancer_url.txt
-        echo "Load Balancer URL: $(cat load_balancer_url.txt)"
+        kubectl get svc python-flask-web-service -o jsonpath='{.status.loadBalancer.ingress[0].ip}' > load_balancer_ip.txt
+        echo "Load Balancer IP: $(cat load_balancer_ip.txt)"
