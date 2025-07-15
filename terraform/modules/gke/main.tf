@@ -6,7 +6,7 @@ resource "google_container_cluster" "primary" {
   initial_node_count = 1
   node_config {
     machine_type = "n1-standard-1"
-    disk_type = "pd-ssd"
+    disk_type = "pd-standard"
     disk_size_gb = 20
     oauth_scopes = [
       "https://www.googleapis.com/auth/compute",
