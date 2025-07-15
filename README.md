@@ -1,71 +1,64 @@
 # Python Flask Web App
 
-A simple Flask web application with a modern UI, configured for automated deployment to AWS Fargate using GitHub Actions.
+A simple Flask web application with a modern UI, configured for automated deployment to Google Kubernetes Engine (GKE) using GitHub Actions.
 
 ## Features
 - Flask web framework & Gunicorn server
 - Modern, responsive UI
 - `/health` endpoint for health checks
 - Dockerized for consistent environments
-- **Basic CI/CD pipeline** using GitHub Actions to deploy to AWS ECS Fargate
+- **CI/CD pipeline** using GitHub Actions to deploy to GKE
+- **Infrastructure as Code** using Terraform to provision a GKE cluster.
 
-## CI/CD with GitHub Actions and AWS Fargate
+## CI/CD with GitHub Actions and GKE
 
-This project contains a simple, self-contained CI/CD pipeline using GitHub Actions. When you push a change to the `main` branch, the workflow automatically builds a new Docker image, pushes it to your private Amazon ECR repository, and deploys it to your Amazon ECS Fargate service.
+This project contains a CI/CD pipeline using GitHub Actions and Terraform. 
+- The **Terraform workflow** (`terraform.yml`) provisions a GKE cluster on Google Cloud.
+- The **CI workflow** (`ci.yml`) automatically builds a new Docker image, pushes it to your private Google Artifact Registry, and deploys it to your GKE cluster when you push a change to the `main` branch.
 
-### Deployment Setup (One-Time)
+### Prerequisites (One-Time Setup)
 
-Follow these steps in the AWS Console to set up the necessary cloud infrastructure.
+Follow these steps to set up the necessary cloud infrastructure and secrets.
 
-#### Step 1: Create an ECR Repository
-This is the private Docker registry where your application images will be stored.
-1.  Navigate to the **Amazon ECR** service in the AWS Console.
-2.  Click **Create repository**.
-3.  Set the **Visibility** to **Private**.
-4.  Give it a **Repository name** (e.g., `python-flask-web`). You will use this name later.
-5.  Click **Create repository**.
+#### Step 1: Configure Google Cloud Platform (GCP)
+1.  **Create a GCP Project**: If you don't have one already, create a new project in the [GCP Console](https://console.cloud.google.com/).
+2.  **Create a Service Account**: This account will be used by GitHub Actions to authenticate with GCP.
+    *   Navigate to **IAM & Admin > Service Accounts**.
+    *   Click **Create Service Account**.
+    *   Give it a name (e.g., `github-actions-deployer`).
+    *   Grant it the following roles:
+        *   `Kubernetes Engine Admin`
+        *   `Artifact Registry Administrator`
+        *   `Storage Admin` (for Terraform state)
+    *   Create a JSON key for the service account and download it. You will use the contents of this file in the GitHub secrets.
+3.  **Create a Google Artifact Registry Repository**: This is the private Docker registry where your application images will be stored.
+    *   Navigate to **Artifact Registry**.
+    *   Click **Create Repository**.
+    *   Give it a **Name** (e.g., `python-flask-web`). You will use this name later.
+    *   Select **Docker** as the format.
+    *   Choose your desired region.
+    *   Click **Create**.
 
-#### Step 2: Create an ECS Fargate Cluster
-The cluster provides the environment where your application will run.
-1.  Navigate to the **Amazon ECS** service.
-2.  Click **Create Cluster**.
-3.  Set the **Cluster name** (e.g., `flask-cluster`).
-4.  For **Infrastructure**, select **AWS Fargate (serverless)**.
-5.  Click **Create**.
-
-#### Step 3: Create an ECS Task Definition and Service
-This step tells ECS *what* to run (the Task Definition) and *how* to run it (the Service).
-1.  In the ECS console, go to **Task Definitions** and click **Create new Task Definition**.
-2.  Enter a **Task definition family** name (e.g., `flask-app-task`).
-3.  In the **Container details** section, set:
-    *   **Name:** `flask-app` (or your preferred container name).
-    *   **Image URI:** Enter a placeholder for now, like `hello-world`. The CI/CD pipeline will update this automatically.
-    *   **Port mappings:** Add a mapping for port `5000`.
-4.  Click **Create**.
-5.  Now, create a **Service** to run and manage your task:
-    *   In your ECS Cluster, click the **Services** tab and then **Create**.
-    *   Select the Task Definition you just created.
-    *   Give the service a name (e.g., `flask-service`).
-    *   To make your app accessible from the internet, configure a **Load Balancer**.
-
-#### Step 4: Configure GitHub Secrets
-Your GitHub Actions workflow needs secure credentials to interact with your AWS account.
+#### Step 2: Configure GitHub Secrets
+Your GitHub Actions workflow needs secure credentials to interact with your GCP account.
 1.  In your GitHub repository, go to **Settings > Secrets and variables > Actions**.
 2.  Click **New repository secret** for each of the following secrets:
-    *   `AWS_ACCESS_KEY_ID`: Your AWS access key ID.
-    *   `AWS_SECRET_ACCESS_KEY`: Your AWS secret access key.
-    *   `AWS_REGION`: The AWS region where you created your resources (e.g., `us-east-1`).
-    *   `ECR_REPOSITORY`: The name of the ECR repository you created in Step 1.
-    *   `ECS_CLUSTER_NAME`: The name of the ECS cluster you created in Step 2.
-    *   `ECS_SERVICE_NAME`: The name of the ECS service you created in Step 3.
-    *   `CONTAINER_NAME`: The container name from your Task Definition (e.g., `flask-app`).
+    *   `GCP_PROJECT_ID`: Your Google Cloud project ID.
+    *   `GCP_SA_KEY`: The entire JSON content of the service account key you downloaded.
+    *   `GCP_REGION`: The GCP region where you want to deploy (e.g., `us-central1`).
+    *   `GAR_REPOSITORY`: The name of the Artifact Registry repository you created.
+    *   `GKE_CLUSTER_NAME`: The name for your GKE cluster (e.g., `my-gke-cluster`).
+
+#### Step 3: Update `terraform.tfvars`
+Update the `terraform/terraform.tfvars` file with your GCP project details.
 
 ### How the Pipeline Works
-1.  **Push to `main`**: You push a code change to the `main` branch of your repository.
-2.  **Trigger Workflow**: This automatically starts the GitHub Actions workflow defined in `.github/workflows/ci.yml`.
-3.  **Checkout Code**: The first step in the job checks out your repository's code so it can be used by the next steps.
-4.  **Build Image**: The workflow builds a new Docker image based on the `Dockerfile`.
-5.  **Push to ECR**: It tags the new image with a unique identifier (the commit SHA) and pushes it to your private Amazon ECR repository.
-6.  **Deploy to ECS**: Finally, it updates your ECS Task Definition with the new image ID and triggers a deployment. ECS then gracefully stops the old container and starts a new one with the updated image.
+1.  **Provision Infrastructure**:
+    *   Manually trigger the **Terraform Provision and Destroy** workflow from the Actions tab in GitHub.
+    *   Select the `apply` action to create the GKE cluster.
+2.  **Deploy Application**:
+    *   Push a code change to the `main` branch.
+    *   This automatically starts the **Deploy to Google GKE** workflow.
+    *   The workflow builds a new Docker image, pushes it to Google Artifact Registry, and deploys it to your GKE cluster.
 ---
 **Created by Sushant Sonbarse** | [GitHub](https://github.com/sonbarse17/)
