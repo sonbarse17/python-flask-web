@@ -28,5 +28,5 @@ module "gke_cluster" {
   source       = "./modules/gke"
   cluster_name = var.gke_cluster_name
   location     = var.gcp_region
-  node_count   = 2
+  node_count   = 1
 }
