@@ -67,6 +67,5 @@ Your GitHub Actions workflow needs secure credentials to interact with your AWS 
 4.  **Build Image**: The workflow builds a new Docker image based on the `Dockerfile`.
 5.  **Push to ECR**: It tags the new image with a unique identifier (the commit SHA) and pushes it to your private Amazon ECR repository.
 6.  **Deploy to ECS**: Finally, it updates your ECS Task Definition with the new image ID and triggers a deployment. ECS then gracefully stops the old container and starts a new one with the updated image.
-
 ---
 **Created by Sushant Sonbarse** | [GitHub](https://github.com/sonbarse17/)
