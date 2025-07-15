@@ -1,0 +1,21 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: python-flask-web-deployment
+  labels:
+    app: python-flask-web
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: python-flask-web
+  template:
+    metadata:
+      labels:
+        app: python-flask-web
+    spec:
+      containers:
+      - name: python-flask-web
+        image: ${{ secrets.ECR_REGISTRY }}/${{ secrets.ECR_REPOSITORY }}:${{ github.sha }}
+        ports:
+        - containerPort: 5000

@@ -1,4 +1,4 @@
-name: Deploy to Amazon ECS
+name: Deploy to Amazon EKS
 
 on:
   push:
@@ -35,25 +35,31 @@ jobs:
         ECR_REPOSITORY: ${{ secrets.ECR_REPOSITORY }}
         IMAGE_TAG: ${{ github.sha }}
       run: |
-        # Substitute the AWS_ACCOUNT_ID in the task definition file
-        sed -i "s|\${AWS_ACCOUNT_ID}|${{ secrets.AWS_ACCOUNT_ID }}|g" taskdef.json
-        
         docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
         docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
         echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
 
-    - name: Fill in the new image ID in the Amazon ECS task definition
-      id: task-def
-      uses: aws-actions/amazon-ecs-render-task-definition@v1
+    - name: Set up kubectl
+      uses: azure/setup-kubectl@v3
       with:
-        task-definition: taskdef.json
-        container-name: ${{ secrets.CONTAINER_NAME }}
-        image: ${{ steps.build-image.outputs.image }}
+        version: 'v1.21.3' # Specify your desired kubectl version
 
-    - name: Deploy Amazon ECS task definition
-      uses: aws-actions/amazon-ecs-deploy-task-definition@v1
-      with:
-        task-definition: ${{ steps.task-def.outputs.task-definition }}
-        service: ${{ secrets.ECS_SERVICE_NAME }}
-        cluster: ${{ secrets.ECS_CLUSTER_NAME }}
-        wait-for-service-stability: true
+    - name: Update kube config
+      run: aws eks update-kubeconfig --name ${{ secrets.EKS_CLUSTER_NAME }} --region ${{ secrets.AWS_REGION }}
+
+    - name: Deploy to EKS
+      run: |
+        # Replace the image placeholder in the deployment.yml
+        sed -i 's|${{ secrets.ECR_REGISTRY }}/${{ secrets.ECR_REPOSITORY }}:${{ github.sha }}|${{ steps.build-image.outputs.image }}|g' k8s/deployment.yml
+        kubectl apply -f k8s/deployment.yml
+        kubectl apply -f k8s/service.yml
+
+    - name: Wait for deployment to complete
+      run: kubectl rollout status deployment/python-flask-web-deployment --timeout=300s
+
+    - name: Get Load Balancer URL
+      run: |
+        echo "Waiting for Load Balancer to be provisioned..."
+        sleep 30
+        kubectl get svc python-flask-web-service -o jsonpath='{.status.loadBalancer.ingress[0].hostname}' > load_balancer_url.txt
+        echo "Load Balancer URL: $(cat load_balancer_url.txt)"
