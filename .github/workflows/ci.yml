@@ -50,8 +50,7 @@ jobs:
 
     - name: Deploy to GKE
       run: |
-        # Replace the image placeholder in the deployment.yml
-        sed -i 's|${{ secrets.ECR_REGISTRY }}/${{ secrets.ECR_REPOSITORY }}:${{ github.sha }}|${{ steps.build-image.outputs.image }}|g' k8s/deployment.yml
+        sed -i 's|__IMAGE_URL__|${{ steps.build-image.outputs.image }}|g' k8s/deployment.yml
         kubectl apply -f k8s/deployment.yml
         kubectl apply -f k8s/service.yml
 
