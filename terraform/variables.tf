@@ -12,7 +12,7 @@ variable "cluster_name" {
 variable "cluster_version" {
   description = "The Kubernetes version for the EKS cluster."
   type        = string
-  default     = "1.31"
+  default     = "1.32"
 }
 
 variable "instance_types" {
@@ -24,13 +24,13 @@ variable "instance_types" {
 variable "desired_size" {
   description = "The desired number of worker nodes."
   type        = number
-  default     = 2
+  default     = 1
 }
 
 variable "max_size" {
   description = "The maximum number of worker nodes."
   type        = number
-  default     = 3
+  default     = 2
 }
 
 variable "min_size" {
