@@ -14,3 +14,18 @@ variable "node_count" {
   type        = number
   default     = 1
 }
+
+variable "network_id" {
+  description = "The ID of the VPC network."
+  type        = string
+}
+
+variable "subnet_id" {
+  description = "The ID of the subnet."
+  type        = string
+}
+
+variable "service_account_email" {
+  description = "The email of the service account to use for the GKE nodes."
+  type        = string
+}

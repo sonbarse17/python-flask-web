@@ -4,6 +4,10 @@ resource "google_container_cluster" "primary" {
   location = var.location
 
   initial_node_count = 1
+  
+  # Use the VPC network and subnet
+  network    = var.network_id
+  subnetwork = var.subnet_id
   node_config {
     machine_type = "n1-standard-1"
     disk_type = "pd-standard"
@@ -22,9 +26,11 @@ resource "google_container_node_pool" "primary_nodes" {
   location   = var.location
   cluster    = google_container_cluster.primary.name
   node_count = var.node_count
+  
+  # Use the custom service account
+  service_account = var.service_account_email
 
   node_config {
-    machine_type = "n1-standard-1"
     machine_type = "n1-standard-1"
     disk_type = "pd-standard"
     disk_size_gb = 20

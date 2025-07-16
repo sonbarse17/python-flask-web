@@ -29,4 +29,7 @@ module "gke_cluster" {
   cluster_name = var.gke_cluster_name
   location     = var.gcp_region
   node_count   = 1
+  network_id   = google_compute_network.vpc.self_link
+  subnet_id    = google_compute_subnetwork.subnet.self_link
+  service_account_email = google_service_account.gke_service_account.email
 }
