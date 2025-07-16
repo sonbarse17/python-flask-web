@@ -17,6 +17,27 @@ jobs:
     - name: Checkout
       uses: actions/checkout@v3
 
+    - name: Login to Docker Hub
+      uses: docker/login-action@v2
+      with:
+        username: ${{ secrets.DOCKERHUB_USERNAME }}
+        password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+    - name: Build, tag, and push image to Docker Hub
+      id: build-image
+      env:
+        DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+        IMAGE_TAG: ${{ github.sha }}
+      run: |
+        docker build -t $DOCKERHUB_USERNAME/python-flask-web:$IMAGE_TAG .
+        docker push $DOCKERHUB_USERNAME/python-flask-web:$IMAGE_TAG
+        echo "image=$DOCKERHUB_USERNAME/python-flask-web:$IMAGE_TAG" >> $GITHUB_OUTPUT
+
+    - name: Set up kubectl
+      uses: azure/setup-kubectl@v3
+      with:
+        version: 'v1.21.3' # Specify your desired kubectl version
+
     - id: 'auth'
       uses: 'google-github-actions/auth@v0'
       with:
@@ -24,30 +45,10 @@ jobs:
 
     - name: 'Set up Cloud SDK'
       uses: 'google-github-actions/setup-gcloud@v1'
-
-    - name: 'Configure Docker'
-      run: gcloud auth configure-docker
-
-    - name: Build, tag, and push image to Google Artifact Registry
-      id: build-image
-      env:
-        GAR_LOCATION: ${{ secrets.GCP_REGION }}
-        GAR_REPOSITORY: ${{ secrets.GAR_REPOSITORY }}
-        IMAGE_TAG: ${{ github.sha }}
-        GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
-      run: |
-        docker build -t $GAR_LOCATION-docker.pkg.dev/$GCP_PROJECT_ID/$GAR_REPOSITORY/python-flask-web:$IMAGE_TAG .
-        docker push $GAR_LOCATION-docker.pkg.dev/$GCP_PROJECT_ID/$GAR_REPOSITORY/python-flask-web:$IMAGE_TAG
-        echo "image=$GAR_LOCATION-docker.pkg.dev/$GCP_PROJECT_ID/$GAR_REPOSITORY/python-flask-web:$IMAGE_TAG" >> $GITHUB_OUTPUT
-
-    - name: Set up kubectl
-      uses: azure/setup-kubectl@v3
-      with:
-        version: 'v1.21.3' # Specify your desired kubectl version
-
+        
     - name: Update kube config
       run: gcloud container clusters get-credentials ${{ secrets.GKE_CLUSTER_NAME }} --region ${{ secrets.GCP_REGION }}
-
+        
     - name: Deploy to GKE
       run: |
         sed -i 's|__IMAGE_URL__|${{ steps.build-image.outputs.image }}|g' k8s/deployment.yml
