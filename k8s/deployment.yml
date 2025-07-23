@@ -1,21 +1,21 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: python-flask-web-deployment
+  name: flask-web
   labels:
-    app: python-flask-web
+    app: flask-web
 spec:
-  replicas: 2
+  replicas: 3
   selector:
     matchLabels:
-      app: python-flask-web
+      app: flask-app
   template:
     metadata:
       labels:
-        app: python-flask-web
+        app: flask-app
     spec:
       containers:
-      - name: python-flask-web
-        image: __IMAGE_URL__
+      - name: flask-container
+        image: sonbarse17/python-flask-web:latest
         ports:
         - containerPort: 5000
